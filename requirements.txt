@@ -1,0 +1,8 @@
+tetris-gymnasium
+opencv-python
+gymnasium
+numpy
+matplotlib
+ipykernel
+cv2
+torch
