@@ -294,3 +294,13 @@ python Baseline/play_tetris.py
   evaluation scripts default to `DQN_scripts/checkpoints/`; override with
   `--save-path` and `--model-path` to use the existing `checkpoints/` folder.
 - `Tetris_RL_script_runner.ipynb` shows an end-to-end workflow.
+
+## Results (reported)
+
+- After 100 training episodes, the agent clears ~4k lines on average over a
+  10-episode evaluation.
+- After 200 training episodes (about 15 minutes on an M4 chip), the agent clears
+  ~20k lines on average over 10 episodes with a standard deviation of ~7k.
+- This is about 50x higher than the greedy baseline.
+- More compute improves performance; as the policy improves, evaluation runs
+  take longer (around 35 minutes after the 200-episode training run).
