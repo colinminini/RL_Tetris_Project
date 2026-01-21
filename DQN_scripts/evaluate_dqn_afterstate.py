@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from tetris_gymnasium.envs import Tetris
 
-from dqn_afterstate import (
+from DQN_scripts.dqn_afterstate import (
     AfterStateQNetwork,
     FEATURE_BUMPINESS,
     FEATURE_DIM,
