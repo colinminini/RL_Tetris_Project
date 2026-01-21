@@ -295,7 +295,7 @@ python Baseline/play_tetris.py
   `--save-path` and `--model-path` to use the existing `checkpoints/` folder.
 - `Tetris_RL_script_runner.ipynb` shows an end-to-end workflow.
 
-## Results (reported)
+## Results
 
 - After 100 training episodes, the agent clears ~4k lines on average over a
   10-episode evaluation.
