@@ -291,6 +291,6 @@ python Baseline/play_tetris.py
 ## Notes
 
 - Checkpoints in `checkpoints/` are pre-trained weights. The training and
-  evaluation scripts default to `tetris_code/checkpoints/`; override with
+  evaluation scripts default to `DQN_scripts/checkpoints/`; override with
   `--save-path` and `--model-path` to use the existing `checkpoints/` folder.
-- `run_scripts.ipynb` shows an end-to-end workflow.
+- `Tetris_RL_script_runner.ipynb` shows an end-to-end workflow.
