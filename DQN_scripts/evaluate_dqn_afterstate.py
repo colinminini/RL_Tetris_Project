@@ -38,7 +38,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate a DQN after-state Tetris agent.")
     # model-path: .pt file with model_state; episodes: number of evaluation runs.
     parser.add_argument(
-        "--model-path", type=str, default="tetris_code/checkpoints/dqn_afterstate.pt"
+        "--model-path", type=str, default="DQN_scripts/checkpoints/dqn_afterstate.pt"
     )
     parser.add_argument("--episodes", type=int, default=20)
     # seed: RNG seed; device: "auto" or explicit torch device string.

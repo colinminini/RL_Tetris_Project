@@ -3,6 +3,7 @@ import os
 import random
 
 import gymnasium as gym
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -59,35 +60,35 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Train a DQN after-state agent with Dellacherie features."
     )
-    # episodes: total training episodes; gamma: discount; lr: Adam learning rate.
-    parser.add_argument("--episodes", type=int, default=1000)
+    # episodes: logging reference only when total-steps is the real budget.
+    parser.add_argument("--episodes", type=int, default=None)
     parser.add_argument("--gamma", type=float, default=0.99)
     parser.add_argument("--lr", type=float, default=1e-3)
     # seed: RNG seed; device: "auto" or explicit torch device string.
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--device", type=str, default="auto")
-    # max-steps: optional cap on steps per episode.
-    parser.add_argument("--max-steps", type=int, default=None)
+    # total-steps: training budget in macro-actions (global steps).
+    parser.add_argument("--total-steps", type=int, default=50000)
     # replay buffer and training batch sizes.
-    parser.add_argument("--buffer-size", type=int, default=50000)
-    parser.add_argument("--batch-size", type=int, default=512)
-    parser.add_argument("--start-training", type=int, default=1000)
-    parser.add_argument("--target-update", type=int, default=500)
+    parser.add_argument("--buffer-size", type=int, default=20000)
+    parser.add_argument("--batch-size", type=int, default=256)
+    parser.add_argument("--start-training", type=int, default=None)
+    parser.add_argument("--target-update", type=int, default=None)
     # epsilon-greedy schedule settings.
     parser.add_argument("--epsilon-start", type=float, default=1.0)
-    parser.add_argument("--epsilon-end", type=float, default=0.1)
-    parser.add_argument("--epsilon-decay", type=int, default=20000)
+    parser.add_argument("--epsilon-end", type=float, default=0.02)
+    parser.add_argument("--epsilon-decay", type=int, default=None)
     # max-shift: number of left/right shifts to consider per macro-action.
     parser.add_argument("--max-shift", type=int, default=10)
     # log/save intervals measured in episodes.
     parser.add_argument("--log-interval", type=int, default=10)
-    parser.add_argument("--save-interval", type=int, default=100)
+    parser.add_argument("--save-interval", type=int, default=50)
     parser.add_argument(
-        "--save-path", type=str, default="tetris_code/checkpoints/dqn_afterstate.pt"
+        "--save-path", type=str, default="DQN_scripts/checkpoints/dqn_afterstate.pt"
     )
     parser.add_argument("--render", action="store_true")
     # max-grad-norm: gradient clipping threshold (None disables).
-    parser.add_argument("--max-grad-norm", type=float, default=5.0)
+    parser.add_argument("--max-grad-norm", type=float, default=None)
     return parser.parse_args()
 
 
@@ -204,6 +205,16 @@ def compute_batch_loss(policy, target, batch, gamma, device):
 
 def main():
     args = parse_args()
+    total_target_steps = args.total_steps
+    if args.epsilon_decay is None:
+        # Decay to near-end by ~3 * decay ~= total_target_steps.
+        args.epsilon_decay = max(1000, total_target_steps // 3)
+    if args.start_training is None:
+        # Warm up until ~5 batches or 1k steps, capped by buffer capacity.
+        args.start_training = min(args.buffer_size, max(1000, 5 * args.batch_size))
+    if args.target_update is None:
+        # Refresh target network about every ~0.5% of total training steps.
+        args.target_update = max(500, args.total_steps // 200)
     if args.device == "auto":
         # Prefer MPS for Apple Silicon, then CUDA, then CPU.
         if torch.backends.mps.is_available():
@@ -248,7 +259,14 @@ def main():
     # global_step counts macro-actions across all episodes.
     # episode_rewards: list of per-episode returns (scalar floats)
     episode_rewards = []
-    for episode in range(1, args.episodes + 1):
+    avg_return_history = []
+    log_epsilons = []
+    log_episodes = []
+    planned_episodes = args.episodes
+    stop_training = False
+    episode = 0
+    while True:
+        episode += 1
         seed = args.seed + episode if args.seed is not None else None
         obs, _ = env.reset(seed=seed)
         prev_features = extract_features(extract_board(obs), lines_cleared=0)[0]
@@ -295,9 +313,6 @@ def main():
             total_reward += shaped_reward
 
             steps += 1
-            if args.max_steps is not None and steps >= args.max_steps:
-                truncated = True
-                terminated = True
 
             if not (terminated or truncated):
                 next_candidates = enumerate_after_states(env, sequences)
@@ -342,19 +357,61 @@ def main():
                 break
 
         episode_rewards.append(total_reward)
+        window = args.log_interval if args.log_interval and args.log_interval > 0 else 1
+        avg_return = float(np.mean(episode_rewards[-window:])) if episode_rewards else 0.0
+        avg_return_history.append(avg_return)
+        epsilon_for_log = epsilon_by_step(
+            global_step, args.epsilon_start, args.epsilon_end, args.epsilon_decay
+        )
         if args.log_interval and episode % args.log_interval == 0:
-            recent = episode_rewards[-args.log_interval :]
-            avg_return = float(np.mean(recent)) if recent else 0.0
+            episode_total = planned_episodes if planned_episodes is not None else "?"
             print(
-                f"Episode {episode}/{args.episodes} avg_return={avg_return:.2f} "
-                f"epsilon={epsilon:.3f}" # type: ignore
+                f"Episode {episode}/{episode_total} avg_return={avg_return:.2f} "
+                f"epsilon={epsilon_for_log:.3f} global_steps={global_step}/{args.total_steps}"
             )
+            log_epsilons.append(epsilon_for_log)
+            log_episodes.append(episode)
 
         if args.save_interval and episode % args.save_interval == 0:
             save_checkpoint(args.save_path, policy, target, optimizer, episode)
+        if global_step >= args.total_steps:
+            stop_training = True
+        if stop_training:
+            break
 
-    save_checkpoint(args.save_path, policy, target, optimizer, args.episodes)
+    save_checkpoint(args.save_path, policy, target, optimizer, episode)
     print(f"Saved checkpoint to {args.save_path}")
+
+    if avg_return_history:
+        fig, ax1 = plt.subplots(figsize=(10, 6))
+        episodes = np.arange(1, len(avg_return_history) + 1)
+        ax1.plot(episodes, avg_return_history, color="tab:blue", label="Avg return (windowed)")
+        ax1.set_xlabel("Episode")
+        ax1.set_ylabel("Avg return", color="tab:blue")
+        ax1.tick_params(axis="y", labelcolor="tab:blue")
+
+        ax2 = ax1.twinx()
+        if log_epsilons:
+            ax2.plot(
+                log_episodes,
+                log_epsilons,
+                color="tab:orange",
+                marker="o",
+                linestyle="--",
+                label="Epsilon (log interval)",
+            )
+        ax2.set_ylabel("Epsilon", color="tab:orange")
+        ax2.tick_params(axis="y", labelcolor="tab:orange")
+
+        title = "DQN After-state Training Progress"
+        fig.suptitle(title)
+        fig.tight_layout()
+
+        os.makedirs("sources", exist_ok=True)
+        plot_path = os.path.join("sources", "dqn_afterstate_training.png")
+        fig.savefig(plot_path, dpi=150, bbox_inches="tight")
+        print(f"Saved training plot to {plot_path}")
+        plt.show()
 
 
 if __name__ == "__main__":
