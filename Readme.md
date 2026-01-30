@@ -203,6 +203,21 @@ epsilon(step) = end + (start - end) * exp(-step / decay)
 High epsilon early encourages exploration; lower epsilon later favors
 exploitation of the learned policy.
 
+## Training plot
+
+The training script saves a plot of the average return per episode and epsilon
+over time in `sources/dqn_afterstate_training.png`:
+
+![DQN after-state training plot](sources/dqn_afterstate_training.png)
+
+## Results
+
+- The agent scores
+  ~40k on average over 10 episodes with a standard deviation of ~17k.
+- This is about 100x higher than the greedy baseline.
+- More compute improves performance; as the policy improves, evaluation runs
+  take longer.
+
 ## Setup
 
 ```bash
@@ -249,11 +264,3 @@ python Baseline/play_tetris.py
   evaluation scripts default to `DQN_scripts/checkpoints/`; override with
   `--save-path` and `--model-path` to use the existing `checkpoints/` folder.
 - `Tetris_RL_script_runner.ipynb` shows an end-to-end workflow.
-
-## Results
-
-- The agent scores
-  ~40k on average over 10 episodes with a standard deviation of ~17k.
-- This is about 100x higher than the greedy baseline.
-- More compute improves performance; as the policy improves, evaluation runs
-  take longer.
