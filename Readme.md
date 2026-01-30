@@ -234,7 +234,7 @@ If `pip` errors on `cv2`, remove that line and keep `opencv-python` installed
 DQN after-state (feature-based):
 
 ```bash
-python train_dqn_afterstate.py --episodes 1000 --save-path checkpoints/dqn_afterstate.pt
+python train_dqn_afterstate.py
 ```
 
 Use `--render` to watch training (slow).
@@ -242,7 +242,7 @@ Use `--render` to watch training (slow).
 ## Evaluate
 
 ```bash
-python evaluate_dqn_afterstate.py --model-path checkpoints/dqn_afterstate.pt --episodes 20
+python evaluate_dqn_afterstate.py --episodes 10
 ```
 
 Add `--render` to visualize gameplay. For the policy gradient agent, pass
