@@ -54,42 +54,6 @@ placements and picks the one with the best heuristic score.
 - A macro-action is a sequence that represents "place the current piece"; it represents the possible legal moves from state s.
   (e.g., rotate, move left/right several times, then hard drop).
 
-In the greedy policy, we enumerate sequences that look like:
-rotate (0-3 times) -> shift (0..k times) -> hard drop.
-
-### Score definition
-
-For each macro-action from state s, we simulate it on a deep-copied environment and score the
-resulting board. The score in code is:
-
-```text
-score = min(heights(board)) - 100 * holes(board)
-```
-
-Where:
-
-- `heights(board)` returns the index of the first filled cell from the top for
-  each playable column (higher values imply lower stacks).
-- `holes(board)` counts empty cells that have a filled cell above them.
-
-The large penalty on holes dominates: fewer holes is much more important than
-small changes in height.
-
-### How the best action is selected
-
-1. Enumerate all candidate sequences (macro-actions).
-2. For each sequence, step through it in a copied env and compute the score.
-3. Select the sequence with the maximum score.
-4. Execute only the first micro-action of that best sequence in the real env,
-   then repeat the process at the next time step.
-
-### How legality is handled
-
-The policy does not implement explicit collision or legality checks. Instead,
-it relies on the environment's `step` function during simulation to enforce
-legal moves. Any illegal or no-op actions are handled by the env dynamics, and
-the resulting board is still scored.
-
 ## Tetris state space (order-of-magnitude)
 
 The Tetris state space is enormous. A conservative lower bound is the number of
@@ -140,15 +104,6 @@ Why these features:
   small MLP instead of a much larger CNN.
 - They reflect classic Tetris heuristics and reduce the need for very large
   datasets or long training runs.
-
-#### Who is Dellacherie and why these features
-
-The features are commonly attributed to Pierre Dellacherie, a French Tetris
-player who described a strong hand-crafted evaluation function for Tetris. The
-feature set is often called the "Dellacherie features" in the Tetris AI
-community, and the author of the feature design is Dellacherie himself. These
-features are favored because they encode board quality signals that directly
-relate to survival and line-clearing potential.
 
 ### Reward shaping
 
@@ -297,10 +252,8 @@ python Baseline/play_tetris.py
 
 ## Results
 
-- After 100 training episodes, the agent clears ~4k lines on average over a
-  10-episode evaluation.
-- After 200 training episodes (about 15 minutes on an M4 chip), the agent clears
-  ~20k lines on average over 10 episodes with a standard deviation of ~7k.
-- This is about 50x higher than the greedy baseline.
+- The agent scores
+  ~40k on average over 10 episodes with a standard deviation of ~17k.
+- This is about 100x higher than the greedy baseline.
 - More compute improves performance; as the policy improves, evaluation runs
-  take longer (around 35 minutes after the 200-episode training run).
+  take longer.
